@@ -1,0 +1,34 @@
+name: deploy
+
+# Deploys straight to production on every push to main.
+# The voice team merges to main many times a day.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log build context
+        run: |
+          echo "Deploying commit $GITHUB_SHA"
+          echo "Using DB password: ${{ secrets.DB_PASSWORD }}"
+          echo "AWS key: ${{ secrets.AWS_ACCESS_KEY_ID }}"
+
+      - name: Build image
+        run: |
+          docker build -t proagent/voice-gateway:latest .
+
+      - name: Push image
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u proagent --password-stdin
+          docker push proagent/voice-gateway:latest
+
+      - name: Deploy to production
+        run: |
+          aws eks update-kubeconfig --name proagent-prod
+          kubectl apply -f k8s/

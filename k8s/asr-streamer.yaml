@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asr-streamer
+  namespace: proagent
+  labels:
+    app: asr-streamer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: asr-streamer
+  template:
+    metadata:
+      labels:
+        app: asr-streamer
+    spec:
+      # Streaming speech-to-text. Sits directly on the live call path; the voice
+      # SLO (sub-1s end to end) depends on this staying responsive.
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: asr-streamer
+          image: proagent/asr-streamer:1.4.2
+          ports:
+            - containerPort: 9090
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          # Liveness hits an endpoint that verifies the Postgres + Redis
+          # connections are live before returning 200.
+          livenessProbe:
+            httpGet:
+              path: /health/deep
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 2
+          readinessProbe:
+            httpGet:
+              path: /health/deep
+              port: 9090
+            periodSeconds: 5
+---
+# Lock down namespace traffic: default-deny, then allow the gateway in.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: asr-streamer-netpol
+  namespace: proagent
+spec:
+  podSelector:
+    matchLabels:
+      app: asr-streamer
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: voice-gateway
+      ports:
+        - port: 9090
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: voice-gateway

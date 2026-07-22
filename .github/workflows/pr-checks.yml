@@ -1,0 +1,30 @@
+name: pr-checks
+
+# Runs checks on incoming pull requests, including from community forks.
+on:
+  pull_request_target:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the PR's code so we can build and test it.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Greet contributor
+        run: |
+          echo "Thanks for the PR titled: ${{ github.event.pull_request.title }}"
+
+      - name: Install deps and test
+        run: |
+          pip install -r app/requirements.txt
+          make test
+
+      - name: Post coverage comment
+        uses: some-org/coverage-comment-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          aws-deploy-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
