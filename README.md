@@ -40,7 +40,7 @@ app/, Dockerfile   Placeholder service — not the focus, don't rewrite it
 > reasons sharply beats one that fixes everything mechanically.
 
 1. **Audit** the repo. Find what's wrong — security, reliability, cost.
-2. **Fix** what you can. Submit your changes as a branch/PR or a fork. Not
+2. **Fix** what you can. Submit your changes as a fork. Do not raise PR or commit in the repo. Not
    everything is equally important; make your prioritisation visible.
 3. **Write it up** (keep it tight — a ranked table plus short reasoning is
    perfect; put it at `SUBMISSION.md`):
