@@ -17,10 +17,17 @@ spec:
     spec:
       # Streaming speech-to-text. Sits directly on the live call path; the voice
       # SLO (sub-1s end to end) depends on this staying responsive.
+      serviceAccountName: asr-streamer
       terminationGracePeriodSeconds: 5
       containers:
         - name: asr-streamer
           image: proagent/asr-streamer:1.4.2
+          # Prevent privilege escalation and unnecessary kernel capabilities.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 9090
           resources:
@@ -70,3 +77,5 @@ spec:
         - podSelector:
             matchLabels:
               app: voice-gateway
+    # DB/Redis egress not added: no verified endpoints, ports, or selectors
+    # exist in the repository.

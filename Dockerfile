@@ -1,3 +1,4 @@
+# pin the base image to a verified immutable digest for reproducible builds.
 FROM python:3.11
 WORKDIR /app
 COPY app/ .

@@ -21,19 +21,17 @@ spec:
         - name: voice-gateway
           image: proagent/voice-gateway:latest
           securityContext:
-            privileged: true
-            runAsUser: 0
+          # Prevent privilege escalation and unnecessary kernel capabilities.
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8080
-          env:
-            - name: DB_PASSWORD
-              value: "Pr0d1gal-Staging-2024!"
-            - name: AWS_SECRET_ACCESS_KEY
-              value: "wJal4XUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY42"
-            - name: OPENAI_API_KEY
-              value: "sk-proj-8fJ2mExampleKeyDoNotUse00xQ"
+          # Credentials removed; no verified secret integration is available.
           resources:
             requests:
-              cpu: "16"
-              memory: "64Gi"
+            # Must fit the largest permitted staging node (8 CPU / 32 GiB).
+              cpu: "2"
+              memory: "4Gi"
             limits: {}

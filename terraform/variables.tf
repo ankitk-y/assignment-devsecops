@@ -1,11 +1,14 @@
 variable "aws_access_key" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "aws_secret_key" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "db_password" {
-  type = string
+  type      = string
+  sensitive = true
 }

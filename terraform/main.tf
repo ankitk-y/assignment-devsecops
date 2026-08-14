@@ -67,6 +67,7 @@ resource "aws_security_group" "app_nodes" {
   name   = "proagent-app-nodes"
   vpc_id = aws_vpc.main.id
 
+  # TODO: no admin CIDR is evidenced; SSH left open until one is known.
   ingress {
     description = "SSH"
     from_port   = 22
@@ -75,12 +76,13 @@ resource "aws_security_group" "app_nodes" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Scoped to the VPC CIDR; was 0.0.0.0/0 despite being labeled "internal".
   ingress {
     description = "All internal service ports"
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   egress {
@@ -92,8 +94,9 @@ resource "aws_security_group" "app_nodes" {
 
   tags = { Name = "proagent-app-nodes" }
 
-  # Ops occasionally tweaks ingress by hand during incidents; ignore drift so
-  # `terraform apply` doesn't revert their changes.
+  # Ops tweaks ingress by hand during incidents; ignore drift so apply
+  # doesn't revert it. NOTE: this also blocks the ingress fix above from
+  # actually applying until resolved.
   lifecycle {
     ignore_changes = [ingress]
   }
@@ -113,7 +116,7 @@ resource "aws_s3_bucket" "call_recordings" {
 
 resource "aws_s3_bucket_acl" "call_recordings" {
   bucket = aws_s3_bucket.call_recordings.id
-  acl    = "public-read"
+  acl    = "private"
 }
 
 ###############################################################################
@@ -129,11 +132,12 @@ resource "aws_db_instance" "primary" {
   db_name             = "proagent"
   username            = "proagent_admin"
   password            = var.db_password
-  publicly_accessible = true
-  skip_final_snapshot = true
+  publicly_accessible = false
+  skip_final_snapshot = false
 
-  backup_retention_period = 0
-  deletion_protection     = false
+  # 7 days is a minimal-cost baseline, not a benchmarked RPO.
+  backup_retention_period = 7
+  deletion_protection     = true
 
   vpc_security_group_ids = [aws_security_group.app_nodes.id]
 }
@@ -148,6 +152,7 @@ resource "aws_kms_key" "transcripts" {
   description         = "Encrypts the transcripts bucket"
   enable_key_rotation = true
 
+  # Removed AllowDecrypt statement (Principal="*"); no consumer evidenced.
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -156,13 +161,6 @@ resource "aws_kms_key" "transcripts" {
         Effect    = "Allow"
         Principal = { AWS = "arn:aws:iam::111122223333:root" }
         Action    = "kms:*"
-        Resource  = "*"
-      },
-      {
-        Sid       = "AllowDecrypt"
-        Effect    = "Allow"
-        Principal = { AWS = "*" }
-        Action    = ["kms:Decrypt", "kms:DescribeKey"]
         Resource  = "*"
       }
     ]
@@ -189,17 +187,5 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "transcripts" {
   }
 }
 
-# Allows the intent-intelligence workers (and BI tooling) to read transcripts.
-resource "aws_s3_bucket_policy" "transcripts" {
-  bucket = aws_s3_bucket.transcripts.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "AllowReads"
-      Effect    = "Allow"
-      Principal = "*"
-      Action    = "s3:GetObject"
-      Resource  = "${aws_s3_bucket.transcripts.arn}/*"
-    }]
-  })
-}
+# Removed: aws_s3_bucket_policy.transcripts granted s3:GetObject to
+# Principal="*" (public read); no consumer evidenced.

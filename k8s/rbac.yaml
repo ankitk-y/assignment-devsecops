@@ -6,6 +6,16 @@ metadata:
 ---
 # The streamer needs to read its own ConfigMaps and Secrets at startup.
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: asr-streamer-config-read
+  namespace: proagent
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: asr-streamer-config-read
@@ -15,6 +25,6 @@ subjects:
     name: asr-streamer
     namespace: proagent
 roleRef:
-  kind: ClusterRole
-  name: edit
+  kind: Role
+  name: asr-streamer-config-read
   apiGroup: rbac.authorization.k8s.io

@@ -2,7 +2,8 @@ name: pr-checks
 
 # Runs checks on incoming pull requests, including from community forks.
 on:
-  pull_request_target:
+# Use the unprivileged PR context so untrusted fork code cannot access repository secrets.
+  pull_request:
     branches: [main]
 
 jobs:
@@ -23,8 +24,8 @@ jobs:
           pip install -r app/requirements.txt
           make test
 
+      # AWS credentials were unnecessary for coverage reporting and exposed unnecessary privilege.
       - name: Post coverage comment
         uses: some-org/coverage-comment-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          aws-deploy-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

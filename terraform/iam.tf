@@ -2,33 +2,7 @@
 # IAM
 ###############################################################################
 
-# Role attached to the application nodes.
-resource "aws_iam_role" "app_node" {
-  name = "proagent-app-node"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "app_node" {
-  name = "proagent-app-node-policy"
-  role = aws_iam_role.app_node.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = "*"
-      Resource = "*"
-    }]
-  })
-}
+# Removed: unused admin (Action="*"/Resource="*") app_node role/policy.
 
 # Cross-account role used by our analytics vendor (Nucleus Analytics) to pull
 # aggregated call metadata into their dashboards. Vendor operates in AWS
@@ -39,7 +13,8 @@ resource "aws_iam_role" "vendor_analytics" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow"
+      Effect = "Allow"
+      # TODO: trusts the vendor's whole account root; narrow once known.
       Principal = { AWS = "arn:aws:iam::908212334455:root" }
       Action    = "sts:AssumeRole"
     }]
@@ -67,6 +42,9 @@ resource "aws_iam_role_policy" "vendor_analytics" {
 # CI deploy identity
 ###############################################################################
 
+# Provides account_id to build the eks:DescribeCluster ARN below.
+data "aws_caller_identity" "current" {}
+
 # Role assumed by the CI runner to deploy. Scoped to just the actions the
 # pipeline needs.
 resource "aws_iam_role" "ci_deployer" {
@@ -78,6 +56,7 @@ resource "aws_iam_role" "ci_deployer" {
       Effect    = "Allow"
       Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
+      # TODO: narrow repo:prodigal/*:* to the exact repo/branch once known.
       Condition = {
         StringLike = {
           "token.actions.githubusercontent.com:sub" = "repo:prodigal/*:*"
@@ -95,14 +74,9 @@ resource "aws_iam_role_policy" "ci_deployer" {
     Version = "2012-10-17"
     Statement = [{
       Effect = "Allow"
-      Action = [
-        "ec2:RunInstances",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchGetImage",
-        "eks:DescribeCluster",
-        "iam:PassRole"
-      ]
-      Resource = "*"
+      # Only permission deploy.yml actually uses.
+      Action   = "eks:DescribeCluster"
+      Resource = "arn:aws:eks:ap-south-1:${data.aws_caller_identity.current.account_id}:cluster/proagent-prod"
     }]
   })
 }

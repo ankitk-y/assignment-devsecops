@@ -14,10 +14,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Log build context
+       # Secrets were previously printed to CI logs; never log credential values.
         run: |
           echo "Deploying commit $GITHUB_SHA"
-          echo "Using DB password: ${{ secrets.DB_PASSWORD }}"
-          echo "AWS key: ${{ secrets.AWS_ACCESS_KEY_ID }}"
 
       - name: Build image
         run: |
@@ -28,6 +27,8 @@ jobs:
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u proagent --password-stdin
           docker push proagent/voice-gateway:latest
 
+      # TODO: production deploys directly from main; add an appropriate change-control
+      # gate once the team's required approval workflow is established.
       - name: Deploy to production
         run: |
           aws eks update-kubeconfig --name proagent-prod
